@@ -1,0 +1,15 @@
+[package]
+name = "axum-service-errors"
+description = "A crate that provides an easy way for structured error responses using axum"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+homepage = "https://github.com/adiepenbrock/axum-service-errors"
+repository = "https://github.com/adiepenbrock/axum-service-errors"
+readme = "./README.md"
+keywords = ["axum", "errors", "utils"]
+
+[dependencies]
+axum = { version = "0.8.4", features = ["json"] }
+serde = { version = "1.0.219", features = ["derive"] }
+
