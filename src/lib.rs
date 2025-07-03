@@ -5,7 +5,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// A trait for building custom response formats from ServiceError data.
 pub trait ResponseBuilder: std::fmt::Debug {
@@ -125,11 +125,7 @@ impl<'a> IntoResponse for ServiceError<'a> {
             (text, "text/plain")
         };
 
-        (
-            status_code,
-            [("content-type", content_type)],
-            body,
-        ).into_response()
+        (status_code, [("content-type", content_type)], body).into_response()
     }
 }
 
@@ -154,10 +150,11 @@ impl ResponseBuilder for JsonResponseBuilder {
             message: error.format_message(),
             parameters: error.parameters.clone(),
         };
-        
-        let json = serde_json::to_string(&response_body)
-            .unwrap_or_else(|_| format!("{{\"error\":\"Failed to serialize error {}\"}}", error.code));
-        
+
+        let json = serde_json::to_string(&response_body).unwrap_or_else(|_| {
+            format!("{{\"error\":\"Failed to serialize error {}\"}}", error.code)
+        });
+
         (json, "application/json")
     }
 }
@@ -176,6 +173,12 @@ struct JsonResponseBody<'a> {
 /// A simple plain text response builder.
 #[derive(Debug, Clone)]
 pub struct PlainTextResponseBuilder;
+
+impl Default for PlainTextResponseBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PlainTextResponseBuilder {
     pub fn new() -> Self {
