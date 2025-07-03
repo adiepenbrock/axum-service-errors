@@ -7,7 +7,7 @@ A Rust crate that provides structured error responses for [Axum](https://github.
 - **Structured Error Handling**: Define errors with error codes, names, HTTP status codes, and messages
 - **Zero-Copy Strings**: Uses `Cow<'a, str>` for efficient string handling
 - **Message Formatting**: Support for parameterized messages with argument binding
-- **Pluggable Response Builders**: Customize response formats (plain text, JSON, or custom)
+- **Pluggable Response Builders**: Customize response formats with global defaults or per-error overrides
 - **Axum Integration**: Implements `IntoResponse` for seamless use in Axum handlers
 - **Serialization Support**: Serde support for error serialization
 - **Optional JSON Feature**: Enable JSON responses with the `json` feature flag
@@ -27,7 +27,7 @@ axum-service-errors = { version = "0.1.0", features = ["json"] }
 ## Quick Start
 
 ```rust
-use axum_service_errors::ServiceError;
+use axum_service_errors::{ServiceError, JsonResponseBuilder, set_default_response_builder};
 use axum::{routing::get, Router};
 
 async fn handler() -> Result<String, ServiceError<'static>> {
@@ -37,6 +37,9 @@ async fn handler() -> Result<String, ServiceError<'static>> {
 
 #[tokio::main]
 async fn main() {
+    // Set a global default response builder (optional)
+    set_default_response_builder(JsonResponseBuilder::new());
+    
     let app = Router::new().route("/", get(handler));
     // ... start server
 }
@@ -73,30 +76,40 @@ let error = ServiceError::new(1001, "VALIDATION_ERROR", 400, "Invalid input")
     .parameter("reason", "malformed");
 ```
 
-### JSON Response Builder (with `json` feature)
+### Global Default Response Builder
 
 ```rust
-use axum_service_errors::{ServiceError, JsonResponseBuilder};
+use axum_service_errors::{ServiceError, JsonResponseBuilder, set_default_response_builder};
 
+// Set global default at application startup
+set_default_response_builder(JsonResponseBuilder::new());
+
+// Now all errors automatically use JSON format
 let error = ServiceError::new(1001, "VALIDATION_ERROR", 400, "Invalid input")
-    .parameter("field", "email")
-    .with_response_builder(JsonResponseBuilder::new());
+    .parameter("field", "email");
+// No need to call .with_response_builder() - uses JSON by default!
+```
 
-// Returns JSON response:
-// {
-//   "code": 1001,
-//   "name": "VALIDATION_ERROR",
-//   "message": "Invalid input",
-//   "parameters": {
-//     "field": "email"
-//   }
-// }
+### Per-Error Response Builder Override
+
+```rust
+use axum_service_errors::{ServiceError, JsonResponseBuilder, PlainTextResponseBuilder};
+
+// Set JSON as global default
+set_default_response_builder(JsonResponseBuilder::new());
+
+// This error will use JSON (global default)
+let json_error = ServiceError::new(1001, "VALIDATION_ERROR", 400, "Invalid input");
+
+// This error overrides to use plain text
+let text_error = ServiceError::new(1002, "SYSTEM_ERROR", 500, "System failure")
+    .with_response_builder(PlainTextResponseBuilder::new());
 ```
 
 ### Custom Response Builder
 
 ```rust
-use axum_service_errors::{ServiceError, ResponseBuilder};
+use axum_service_errors::{ServiceError, ResponseBuilder, set_default_response_builder};
 
 #[derive(Debug)]
 struct CustomBuilder;
@@ -108,6 +121,10 @@ impl ResponseBuilder for CustomBuilder {
     }
 }
 
+// Set as global default
+set_default_response_builder(CustomBuilder);
+
+// Or use per-error
 let error = ServiceError::new(1001, "CUSTOM_ERROR", 500, "Something went wrong")
     .with_response_builder(CustomBuilder);
 ```
@@ -116,10 +133,11 @@ let error = ServiceError::new(1001, "CUSTOM_ERROR", 500, "Something went wrong")
 
 ### Default Features
 
-- Plain text response formatting
+- Plain text response formatting (fallback when no global default is set)
 - Basic error structure with code, name, status, and message
 - Message formatting with arguments
 - Optional parameters support
+- Global default response builder configuration
 
 ### JSON Feature
 
@@ -133,6 +151,7 @@ axum-service-errors = { version = "0.1.0", features = ["json"] }
 Provides:
 - `JsonResponseBuilder` for JSON-formatted error responses
 - Automatic JSON serialization of error data
+- Can be set as global default with `set_default_response_builder(JsonResponseBuilder::new())`
 
 ## Error Structure
 

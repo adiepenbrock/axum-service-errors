@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 use axum::{
     http::StatusCode,
@@ -8,9 +9,23 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 /// A trait for building custom response formats from ServiceError data.
-pub trait ResponseBuilder: std::fmt::Debug {
+pub trait ResponseBuilder: std::fmt::Debug + Send + Sync {
     /// Build a response body and content-type from the error data.
     fn build(&self, error: &ServiceError) -> (String, &'static str);
+}
+
+/// Global default response builder storage.
+static DEFAULT_RESPONSE_BUILDER: OnceLock<Box<dyn ResponseBuilder>> = OnceLock::new();
+
+/// Set the global default response builder for all ServiceError instances.
+/// This should be called once at application startup.
+pub fn set_default_response_builder(builder: impl ResponseBuilder + 'static) {
+    DEFAULT_RESPONSE_BUILDER.set(Box::new(builder)).ok();
+}
+
+/// Get the global default response builder, if one has been set.
+fn get_default_response_builder() -> Option<&'static Box<dyn ResponseBuilder>> {
+    DEFAULT_RESPONSE_BUILDER.get()
 }
 
 /// A `ServiceError` represents a specific error within the software.
@@ -103,9 +118,13 @@ impl<'a> IntoResponse for ServiceError<'a> {
             StatusCode::from_u16(self.http_status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
 
         let (body, content_type) = if let Some(builder) = &self.response_builder {
+            // Use instance-specific builder
             builder.build(&self)
+        } else if let Some(default_builder) = get_default_response_builder() {
+            // Use global default builder
+            default_builder.build(&self)
         } else {
-            // Default plain text format
+            // Fallback to plain text format
             let text = if let Some(ref params) = self.parameters {
                 format!(
                     "Error {}: {} - {} (Parameters: {:?})",
