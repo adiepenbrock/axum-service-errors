@@ -171,6 +171,122 @@ where
     }
 }
 
+
+// Convenience functions to create objects from heterogeneous key-value pairs
+impl ParameterValue {
+    /// Create an object from a collection of key-value pairs where values can be of different types.
+    pub fn object_from<I>(items: I) -> Self
+    where
+        I: IntoIterator<Item = (String, ParameterValue)>,
+    {
+        ParameterValue::Object(items.into_iter().collect())
+    }
+
+    /// Create an object using a builder pattern for mixed types
+    pub fn object_builder() -> ObjectBuilder {
+        ObjectBuilder::new()
+    }
+
+    /// Create an array using a builder pattern for mixed types  
+    pub fn array_builder() -> ArrayBuilder {
+        ArrayBuilder::new()
+    }
+
+    /// Create an object by calling a closure with a builder
+    pub fn build_object<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut ObjectBuilder) -> &mut ObjectBuilder,
+    {
+        let mut builder = ObjectBuilder::new();
+        f(&mut builder);
+        builder.build()
+    }
+
+    /// Create an array by calling a closure with a builder
+    pub fn build_array<F>(f: F) -> Self  
+    where
+        F: FnOnce(&mut ArrayBuilder) -> &mut ArrayBuilder,
+    {
+        let mut builder = ArrayBuilder::new();
+        f(&mut builder);
+        builder.build()
+    }
+}
+
+/// Builder for creating ParameterValue objects with mixed types
+pub struct ObjectBuilder {
+    map: HashMap<String, ParameterValue>,
+}
+
+impl ObjectBuilder {
+    pub fn new() -> Self {
+        Self {
+            map: HashMap::new(),
+        }
+    }
+
+    pub fn field(mut self, key: impl Into<String>, value: impl Into<ParameterValue>) -> Self {
+        self.map.insert(key.into(), value.into());
+        self
+    }
+
+    pub fn field_mut(&mut self, key: impl Into<String>, value: impl Into<ParameterValue>) -> &mut Self {
+        self.map.insert(key.into(), value.into());
+        self
+    }
+
+    pub fn build(self) -> ParameterValue {
+        ParameterValue::Object(self.map)
+    }
+}
+
+/// Builder for creating ParameterValue arrays with mixed types
+pub struct ArrayBuilder {
+    items: Vec<ParameterValue>,
+}
+
+impl ArrayBuilder {
+    pub fn new() -> Self {
+        Self {
+            items: Vec::new(),
+        }
+    }
+
+    pub fn push(mut self, value: impl Into<ParameterValue>) -> Self {
+        self.items.push(value.into());
+        self
+    }
+
+    pub fn push_mut(&mut self, value: impl Into<ParameterValue>) -> &mut Self {
+        self.items.push(value.into());
+        self
+    }
+
+    pub fn build(self) -> ParameterValue {
+        ParameterValue::Array(self.items)
+    }
+}
+
+/// Macro to create ParameterValue objects with mixed types easily
+#[macro_export]
+macro_rules! param_object {
+    ($($key:expr => $value:expr),* $(,)?) => {
+        $crate::ParameterValue::object_from([
+            $(($key.to_string(), $crate::ParameterValue::from($value))),*
+        ])
+    };
+}
+
+/// Macro to create ParameterValue arrays with mixed types easily  
+#[macro_export]
+macro_rules! param_array {
+    ($($value:expr),* $(,)?) => {
+        $crate::ParameterValue::Array(vec![
+            $($crate::ParameterValue::from($value)),*
+        ])
+    };
+}
+
 impl Display for ParameterValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
