@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 
 /// A parameter value that can be nested and supports various data types.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ParameterValue {
     String(String),
     Integer(i64),

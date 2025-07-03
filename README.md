@@ -18,10 +18,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-axum-service-errors = "0.3.0"
+axum-service-errors = "0.3.1"
 
 # Enable JSON support (optional)
-axum-service-errors = { version = "0.3.0", features = ["json"] }
+axum-service-errors = { version = "0.3.1", features = ["json"] }
 ```
 
 ## Quick Start
@@ -145,7 +145,7 @@ Enable with `features = ["json"]` in your `Cargo.toml`:
 
 ```toml
 [dependencies]
-axum-service-errors = { version = "0.3.0", features = ["json"] }
+axum-service-errors = { version = "0.3.1", features = ["json"] }
 ```
 
 Provides:
