@@ -112,6 +112,65 @@ impl From<Vec<bool>> for ParameterValue {
     }
 }
 
+// More ergonomic array creation from various slice types
+impl<T, const N: usize> From<[T; N]> for ParameterValue
+where
+    T: Into<ParameterValue>,
+{
+    fn from(value: [T; N]) -> Self {
+        ParameterValue::Array(value.into_iter().map(|v| v.into()).collect())
+    }
+}
+
+impl<T> From<&[T]> for ParameterValue
+where
+    T: Clone + Into<ParameterValue>,
+{
+    fn from(value: &[T]) -> Self {
+        ParameterValue::Array(value.iter().cloned().map(|v| v.into()).collect())
+    }
+}
+
+// Ergonomic object creation from key-value pairs
+impl<K, V, const N: usize> From<[(K, V); N]> for ParameterValue
+where
+    K: Into<String>,
+    V: Into<ParameterValue>,
+{
+    fn from(value: [(K, V); N]) -> Self {
+        let map = value.into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        ParameterValue::Object(map)
+    }
+}
+
+impl<K, V> From<&[(K, V)]> for ParameterValue
+where
+    K: Clone + Into<String>,
+    V: Clone + Into<ParameterValue>,
+{
+    fn from(value: &[(K, V)]) -> Self {
+        let map = value.iter()
+            .map(|(k, v)| (k.clone().into(), v.clone().into()))
+            .collect();
+        ParameterValue::Object(map)
+    }
+}
+
+impl<K, V> From<Vec<(K, V)>> for ParameterValue
+where
+    K: Into<String>,
+    V: Into<ParameterValue>,
+{
+    fn from(value: Vec<(K, V)>) -> Self {
+        let map = value.into_iter()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
+        ParameterValue::Object(map)
+    }
+}
+
 impl Display for ParameterValue {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -240,6 +299,20 @@ impl<'a> ServiceError<'a> {
     pub fn parameter(mut self, key: impl ToString, value: impl Into<ParameterValue>) -> Self {
         let parameters = self.parameters.get_or_insert_with(HashMap::new);
         parameters.insert(key.to_string(), value.into());
+        self
+    }
+
+    /// Add multiple parameters at once.
+    pub fn parameters<K, V, I>(mut self, params: I) -> Self
+    where
+        K: Into<String>,
+        V: Into<ParameterValue>,
+        I: IntoIterator<Item = (K, V)>,
+    {
+        let parameters = self.parameters.get_or_insert_with(HashMap::new);
+        for (key, value) in params {
+            parameters.insert(key.into(), value.into());
+        }
         self
     }
 
